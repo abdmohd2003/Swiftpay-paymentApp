@@ -10,9 +10,17 @@ export const SendMoney = () => {
     const [status, setStatus] = useState("idle"); // idle, loading, success, error
     const [message, setMessage] = useState("");
     const navigate = useNavigate();
+    const recipientInitial = name?.[0]?.toUpperCase() || "?";
 
     const handleTransfer = async () => {
-        if (!amount || amount <= 0) {
+        const numericAmount = Number(amount);
+        if (!id || !name) {
+            setStatus("error");
+            setMessage("Recipient information is missing");
+            return;
+        }
+
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
             setStatus("error");
             setMessage("Please enter a valid amount");
             return;
@@ -22,7 +30,7 @@ export const SendMoney = () => {
         try {
             await api.post("/account/transfer", {
                 to: id,
-                amount: parseFloat(amount)
+                amount: numericAmount
             });
             setStatus("success");
             setMessage("Transfer Successful!");
@@ -44,7 +52,7 @@ export const SendMoney = () => {
                 <div className="p-8">
                     <div className="flex flex-col items-center mb-8">
                         <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-3xl font-bold mb-4 shadow-inner">
-                            {name?.[0].toUpperCase()}
+                            {recipientInitial}
                         </div>
                         <h3 className="text-2xl font-bold text-slate-800">{name}</h3>
                         <p className="text-slate-500 text-sm">Verified Recipient</p>
@@ -72,6 +80,8 @@ export const SendMoney = () => {
                                 <input
                                     onChange={(e) => setAmount(e.target.value)}
                                     type="number"
+                                    min="0.01"
+                                    step="0.01"
                                     className="flex h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-4 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                                     id="amount"
                                     placeholder="0.00"

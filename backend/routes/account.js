@@ -2,8 +2,14 @@ const express = require("express");
 const { authMiddleware } = require("../middleware");
 const { Account } = require("../db");
 const mongoose = require('mongoose'); 
+const zod = require("zod");
 
 const router = express.Router();
+
+const transferSchema = zod.object({
+    amount: zod.number().finite().positive(),
+    to: zod.string().refine(value => mongoose.Types.ObjectId.isValid(value))
+});
 
 router.get("/balance", authMiddleware, async (req, res) => {
     try {
@@ -26,16 +32,32 @@ router.get("/balance", authMiddleware, async (req, res) => {
 })
 
 router.post("/transfer", authMiddleware, async (req, res) => {
+    const parsedBody = transferSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+        return res.status(400).json({
+            message: "Amount must be a positive number and recipient must be valid"
+        });
+    }
+
+    const { amount, to } = parsedBody.data;
+    if (to === req.userId.toString()) {
+        return res.status(400).json({
+            message: "Cannot transfer money to yourself"
+        });
+    }
+
     const session = await mongoose.startSession();
 
     try {
         session.startTransaction();
-        const { amount, to } = req.body;
 
-        // Fetch the account within the transaction
-        const account = await Account.findOne({ userId: req.userId }).session(session);
+        const account = await Account.findOneAndUpdate(
+            { userId: req.userId, balance: { $gte: amount } },
+            { $inc: { balance: -amount } },
+            { new: true, session }
+        );
 
-        if (!account || account.balance < amount) {
+        if (!account) {
             await session.abortTransaction();
             return res.status(400).json({
                 message: "Insufficient balance"
@@ -51,20 +73,25 @@ router.post("/transfer", authMiddleware, async (req, res) => {
             });
         }
 
-        // Perform the transfer
-        await Account.updateOne({ userId: req.userId }, { $inc: { balance: -amount } }).session(session);
         await Account.updateOne({ userId: to }, { $inc: { balance: amount } }).session(session);
 
-        // Commit the transaction
         await session.commitTransaction();
         res.json({
             message: "Transfer successful"
         });
-    } catch (err) {
-        await session.abortTransaction();
-        res.status(500).json({ message: "Transfer failed", error: err.message });
+    }
+    catch (err) {
+        console.error("Transfer error:", err);
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+
+        res.status(500).json({
+            success: false,
+            message: "Transfer failed"
+        });
     } finally {
-        session.endSession();
+        await session.endSession();
     }
 });
 

@@ -10,6 +10,12 @@ import { Signin } from "./pages/Signin";
 import { Dashboard } from "./pages/Dashboard";
 import { SendMoney } from "./pages/SendMoney";
 
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem("token");
+
+  return token ? children : <Navigate to="/signin" replace />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -17,8 +23,8 @@ function App() {
         <Route path="/" element={<Navigate to="/signup" />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<Signin />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/send" element={<SendMoney />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/send" element={<ProtectedRoute><SendMoney /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
