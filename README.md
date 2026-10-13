@@ -1,4 +1,4 @@
-# PayTM Full-Stack Clone
+# Swiftpay Full-Stack payments app
 
 A modern, secure full-stack payment application built with the MERN stack. This project features secure user authentication, real-time balance updates, and atomic money transfers using MongoDB transactions.
 
